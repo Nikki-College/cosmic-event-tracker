@@ -12,7 +12,7 @@ export default function AuthForm() {
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ email, password });
     if (error) return setMsg(error.message);
     setMsg("Signup successful! Check your email for confirmation.");
     router.push("/dashboard"); // redirect after signup

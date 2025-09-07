@@ -1,15 +1,32 @@
 "use client";
+
 import { useEffect, useState, useCallback } from "react";
 import { fmt, addDays } from "@/lib/date";
 import EventList from "@/components/components/EventList";
 import { useAuth } from "@/context/AuthContext";
 
+// Type for a single NEO event
+interface NeoEvent {
+  id: string;
+  name: string;
+  is_potentially_hazardous_asteroid: boolean;
+  estimated_diameter: {
+    kilometers: { estimated_diameter_max: number };
+  };
+  close_approach_data: {
+    close_approach_date_full: string;
+    miss_distance: { kilometers: string };
+  }[];
+}
+
+// Type for events grouped by date
+type EventsByDate = Record<string, NeoEvent[]>;
+
 export default function Home() {
   const { user } = useAuth();
 
-  const [start] = useState(new Date());
   const [end, setEnd] = useState(addDays(new Date(), 3));
-  const [eventsByDate, setEventsByDate] = useState({});
+  const [eventsByDate, setEventsByDate] = useState<EventsByDate>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,15 +36,18 @@ export default function Home() {
     try {
       const res = await fetch(`/api/nasa?start=${fmt(s)}&end=${fmt(e)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const grouped: Record<string, any[]> = {};
-      data.forEach((cur: any) => {
+
+      const data: NeoEvent[] = await res.json();
+
+      const grouped: EventsByDate = {};
+      data.forEach((cur: NeoEvent) => {
         const date =
           cur.close_approach_data[0]?.close_approach_date_full?.split(" ")[0] ||
           "Unknown";
         if (!grouped[date]) grouped[date] = [];
         grouped[date].push(cur);
       });
+
       setEventsByDate((prev) => ({ ...prev, ...grouped }));
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
@@ -39,9 +59,10 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      fetchRange(start, end);
+      // Using today's date as start
+      fetchRange(new Date(), end);
     }
-  }, [user, fetchRange, start, end]);
+  }, [user, fetchRange, end]);
 
   if (!user) {
     return (
