@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import EventCard from "./EventCard";
 import Link from "next/link";
 
@@ -14,38 +14,24 @@ interface Event {
   }[];
 }
 
-export default function EventList() {
-  const [events, setEvents] = useState<Event[]>([]);
+interface EventListProps {
+  grouped: Record<string, Event[]>;
+}
+
+export default function EventList({ grouped }: EventListProps) {
   const [selectedEvents, setSelectedEvents] = useState<{
     [key: string]: boolean;
   }>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/nasa");
-        const data = await res.json();
-        setEvents(Array.isArray(data) ? data : []);
-      } catch {
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
-  }, []);
 
   const handleSelect = (id: string) => {
     setSelectedEvents((prev) => {
       const newState = { ...prev, [id]: !prev[id] };
 
-      // Update localStorage with selected asteroids
-      const selectedList = events.filter((e) => newState[e.id]);
+      const selectedList = Object.values(grouped)
+        .flat()
+        .filter((e) => newState[e.id]);
       localStorage.setItem("selectedNEOs", JSON.stringify(selectedList));
 
-      // Dispatch a custom event so Header can update count
       window.dispatchEvent(
         new CustomEvent("neo-storage", { detail: selectedList.length })
       );
@@ -54,9 +40,13 @@ export default function EventList() {
     });
   };
 
-  const selectedEventList = events.filter((e) => selectedEvents[e.id]);
+  const selectedEventList: Event[] = Object.values(grouped)
+    .flat()
+    .filter((e) => selectedEvents[e.id]);
 
-  if (loading) return <p className="text-center">Loading events...</p>;
+  if (!grouped || Object.keys(grouped).length === 0) {
+    return <p className="text-center text-gray-500">No events found.</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -75,30 +65,31 @@ export default function EventList() {
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {events.length ? (
-          events.map((event) => {
-            const diameter =
-              event.estimated_diameter.kilometers.estimated_diameter_max;
-            const approach = event.close_approach_data[0];
-            return (
-              <EventCard
-                key={event.id}
-                id={event.id}
-                name={event.name}
-                hazardous={event.is_potentially_hazardous_asteroid}
-                diameter={diameter}
-                distance={parseFloat(approach.miss_distance.kilometers)}
-                approachDate={approach.close_approach_date_full}
-                selected={!!selectedEvents[event.id]}
-                onSelect={handleSelect}
-              />
-            );
-          })
-        ) : (
-          <p className="text-center text-gray-500">No events found.</p>
-        )}
-      </div>
+      {Object.keys(grouped).map((date) => (
+        <div key={date}>
+          <h2 className="text-xl font-bold mb-2">{date}</h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {grouped[date].map((event) => {
+              const approach = event.close_approach_data[0];
+              return (
+                <EventCard
+                  key={event.id}
+                  id={event.id}
+                  name={event.name}
+                  hazardous={event.is_potentially_hazardous_asteroid}
+                  diameter={
+                    event.estimated_diameter.kilometers.estimated_diameter_max
+                  }
+                  distance={parseFloat(approach.miss_distance.kilometers)}
+                  approachDate={approach.close_approach_date_full}
+                  selected={!!selectedEvents[event.id]}
+                  onSelect={handleSelect}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

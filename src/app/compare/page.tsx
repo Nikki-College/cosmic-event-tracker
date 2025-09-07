@@ -10,6 +10,7 @@ import {
   Legend,
 } from "recharts";
 
+// Type for processed asteroid data used in chart
 interface Asteroid {
   id: string;
   name: string;
@@ -18,19 +19,34 @@ interface Asteroid {
   hazardous: boolean;
 }
 
+// Type for raw stored data in localStorage
+interface StoredNEO {
+  id: string;
+  name: string;
+  is_potentially_hazardous_asteroid: boolean;
+  estimated_diameter: { kilometers: { estimated_diameter_max: number } };
+  close_approach_data: {
+    miss_distance: { kilometers: string };
+    close_approach_date_full: string;
+  }[];
+}
+
 export default function ComparePage() {
   const [data, setData] = useState<Asteroid[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("selectedNEOs");
-    if (stored) {
-      const parsed = JSON.parse(stored)
+    if (!stored) return;
+
+    try {
+      const parsed: StoredNEO[] = JSON.parse(stored);
+      const processed: Asteroid[] = parsed
         .filter(
-          (e: any) =>
+          (e) =>
             e.estimated_diameter?.kilometers &&
             e.close_approach_data?.[0]?.miss_distance?.kilometers
         )
-        .map((e: any) => ({
+        .map((e) => ({
           id: e.id,
           name: e.name,
           diameter: e.estimated_diameter.kilometers.estimated_diameter_max,
@@ -39,7 +55,11 @@ export default function ComparePage() {
           ),
           hazardous: e.is_potentially_hazardous_asteroid,
         }));
-      setData(parsed);
+
+      setData(processed);
+    } catch (error) {
+      console.error("Failed to parse selected NEOs:", error);
+      setData([]);
     }
   }, []);
 
