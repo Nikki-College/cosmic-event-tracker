@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
-  const { user, signIn, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <header className="flex justify-between items-center px-6 py-4 bg-gray-950 text-white">
@@ -19,12 +19,12 @@ export default function Header() {
             Logout
           </button>
         ) : (
-          <button
-            onClick={signIn}
+          <Link
+            href="/login"
             className="px-4 py-2 bg-green-600 rounded hover:bg-green-700"
           >
             Login
-          </button>
+          </Link>
         )}
       </nav>
     </header>
